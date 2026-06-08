@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Money Tracker</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #111827; }
+
+header {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  color: #fff; padding: 14px 20px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+header h1 { font-size: 1.05rem; font-weight: 700; }
+header .sub { font-size: 0.7rem; opacity: 0.6; margin-top: 2px; }
+.updated { margin-left: auto; font-size: 0.7rem; opacity: 0.55; }
+
+.tabs { display: flex; gap: 1px; background: #e5e7eb; border-radius: 0; }
+.tab-btn {
+  background: #fff; border: none; padding: 10px 20px;
+  font-size: 0.82rem; font-weight: 600; cursor: pointer; color: #6b7280;
+  transition: all 0.15s; border-bottom: 3px solid transparent;
+}
+.tab-btn.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+.tab-btn:hover:not(.active) { background: #f9fafb; color: #374151; }
+
+.panel { display: none; padding: 16px; }
+.panel.active { display: block; }
+
+/* INVESTOR GRID */
+.investor-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px; margin-bottom: 16px;
+}
+.inv-card {
+  background: #fff; border: 2px solid #e5e7eb; border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; transition: all 0.15s;
+  text-align: center;
+}
+.inv-card:hover { border-color: #a5b4fc; box-shadow: 0 2px 8px rgba(79,70,229,0.12); }
+.inv-card.active { border-color: #4f46e5; background: #eef2ff; }
+.inv-card .inv-name { font-weight: 700; font-size: 0.82rem; color: #111827; }
+.inv-card .inv-fund { font-size: 0.68rem; color: #9ca3af; margin-top: 2px; }
+.inv-card .inv-period { font-size: 0.66rem; color: #6b7280; margin-top: 4px; }
+
+/* INFO BAR */
+.info-bar {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 10px 14px; align-items: center;
+}
+.info-bar .pill {
+  font-size: 0.78rem; color: #374151;
+}
+.info-bar .pill strong { color: #4f46e5; }
+.info-bar a { margin-left: auto; font-size: 0.75rem; color: #4f46e5; text-decoration: none; font-weight: 600; }
+.info-bar a:hover { text-decoration: underline; }
+
+.empty-state {
+  text-align: center; padding: 40px 20px; color: #9ca3af; font-size: 0.85rem;
+  background: #fff; border-radius: 10px; border: 2px dashed #e5e7eb;
+}
+.empty-state .icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+/* TABLE */
+.tbl-wrap { max-height: 60vh; overflow-y: auto; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.tbl-wrap::-webkit-scrollbar { width: 5px; }
+.tbl-wrap::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.81rem; }
+thead { position: sticky; top: 0; z-index: 1; }
+th {
+  background: #f8fafc; padding: 9px 12px; text-align: left;
+  font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap; cursor: pointer; user-select: none;
+}
+th:hover { background: #f1f5f9; }
+th.sorted { color: #4f46e5; }
+td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafafa; }
+.num { text-align: right; font-variant-numeric: tabular-nums; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.78rem; }
+
+.badge {
+  display: inline-block; padding: 2px 7px; border-radius: 4px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.3px;
+}
+.badge-put { background: #fee2e2; color: #b91c1c; }
+.badge-call { background: #dcfce7; color: #15803d; }
+.badge-sh { background: #eff6ff; color: #1d4ed8; }
+.badge-other { background: #f3f4f6; color: #374151; }
+
+.search-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+.search-row input {
+  padding: 7px 11px; border: 1px solid #d1d5db; border-radius: 8px;
+  font-size: 0.82rem; outline: none; flex: 1; min-width: 160px;
+}
+.search-row input:focus { border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79,70,229,0.15); }
+.count-label { font-size: 0.75rem; color: #9ca3af; }
+
+/* CONGRESS SECTION */
+.congress-links {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px; margin-bottom: 20px;
+}
+.congress-link-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 14px; text-decoration: none; color: inherit;
+  transition: all 0.15s; display: block;
+}
+.congress-link-card:hover { border-color: #4f46e5; box-shadow: 0 2px 8px rgba(79,70,229,0.12); }
+.congress-link-card .card-title { font-weight: 700; font-size: 0.88rem; color: #111827; margin-bottom: 4px; }
+.congress-link-card .card-desc { font-size: 0.75rem; color: #6b7280; line-height: 1.4; }
+.congress-link-card .card-arrow { float: right; color: #4f46e5; font-size: 1rem; }
+
+.notable-trades { margin-bottom: 20px; }
+.notable-trades h3 { font-size: 0.85rem; font-weight: 700; color: #374151; margin-bottom: 10px; }
+table.cong-tbl { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); font-size: 0.8rem; }
+table.cong-tbl th { background: #f8fafc; padding: 9px 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; text-align: left; }
+table.cong-tbl td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; }
+table.cong-tbl tr:last-child td { border-bottom: none; }
+.ticker { display: inline-block; background: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-family: monospace; font-size: 0.75rem; }
+.badge-buy { background: #dcfce7; color: #15803d; padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+.badge-sell { background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+
+.note-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; font-size: 0.78rem; color: #92400e; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div style="font-size:1.4rem;margin-bottom:2px">🐋</div>
+  </div>
+  <div>
+    <h1>Smart Money Tracker</h1>
+    <div class="sub">SEC 13F Holdings · Congress Disclosures · Real Data</div>
+  </div>
+  <div class="updated">Ενημέρωση: Ιούνιος 2026</div>
+</header>
+
+<div style="display:flex;background:#fff;border-bottom:1px solid #e5e7eb;">
+  <button class="tab-btn active" data-tab="f13">📊 Hedge Funds (13F)</button>
+  <button class="tab-btn" data-tab="congress">🏛 Congress Trades</button>
+</div>
+
+<!-- ═══════ 13F PANEL ═══════ -->
+<div id="tab-f13" class="panel active">
+
+  <div class="investor-grid" id="inv-grid"></div>
+
+  <div id="empty-state" class="empty-state">
+    <div class="icon">👆</div>
+    <div>Επέλεξε έναν επενδυτή για να δεις τις θέσεις του</div>
+    <div style="margin-top:6px;font-size:0.75rem">Δεδομένα απευθείας από SEC EDGAR</div>
+  </div>
+
+  <div id="holdings-view" style="display:none">
+    <div class="info-bar" id="info-bar"></div>
+    <div class="search-row">
+      <input type="text" id="search-input" placeholder="🔍 Αναζήτηση εταιρείας...">
+      <span class="count-label" id="count-label"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-col="rank">#</th>
+            <th data-col="name">Εταιρεία</th>
+            <th data-col="class">Τύπος</th>
+            <th data-col="value" class="num sorted">Αξία ($000) ▼</th>
+            <th data-col="shares" class="num">Μετοχές</th>
+            <th data-col="pct" class="num">% Port.</th>
+            <th data-col="pos">Θέση</th>
+          </tr>
+        </thead>
+        <tbody id="holdings-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════ CONGRESS PANEL ═══════ -->
+<div id="tab-congress" class="panel">
+
+  <div class="note-box">
+    ⚡ Τα δεδομένα Congress trades ανανεώνονται σε πραγματικό χρόνο στις παρακάτω πλατφόρμες. Κλίκαρε για να δεις τις τελευταίες συναλλαγές βουλευτών & γερουσιαστών.
+  </div>
+
+  <div class="congress-links">
+    <a class="congress-link-card" href="https://www.capitoltrades.com" target="_blank">
+      <span class="card-arrow">↗</span>
+      <div class="card-title">Capitol Trades</div>
+      <div class="card-desc">Η καλύτερη πλατφόρμα. Αναζήτηση ανά politician, ticker, ημερομηνία. Αγορές & πωλήσεις House + Senate.</div>
+    </a>
+    <a class="congress-link-card" href="https://housestockwatcher.com" target="_blank">
+      <span class="card-arrow">↗</span>
+      <div class="card-title">House Stock Watcher</div>
+      <div class="card-desc">Αποκλειστικά House of Representatives. Δωρεάν, ιστορικά δεδομένα, CSV export.</div>
+    </a>
+    <a class="congress-link-card" href="https://senatestockwatcher.com" target="_blank">
+      <span class="card-arrow">↗</span>
+      <div class="card-title">Senate Stock Watcher</div>
+      <div class="card-desc">Αποκλειστικά Γερουσία. Δωρεάν, ιστορικά δεδομένα από το 2012.</div>
+    </a>
+    <a class="congress-link-card" href="https://disclosures-clerk.house.gov/FinancialDisclosure" target="_blank">
+      <span class="card-arrow">↗</span>
+      <div class="card-title">House Disclosures (Official)</div>
+      <div class="card-desc">Η επίσημη πηγή. Πλήρη PTR (Periodic Transaction Reports) σε PDF.</div>
+    </a>
+    <a class="congress-link-card" href="https://efts.sec.gov/LATEST/search-index?forms=4&dateRange=custom&startdt=2026-01-01" target="_blank">
+      <span class="card-arrow">↗</span>
+      <div class="card-title">SEC Form 4 (Insiders)</div>
+      <div class="card-desc">Insider trades από στελέχη εταιρειών — Form 4 real-time στο EDGAR.</div>
+    </a>
+    <a class="congress-link-card" href="https://stockanalysis.com/congress/" target="_blank">
+      <span class="card-arrow">↗</span>
+      <div class="card-title">Stock Analysis Congress</div>
+      <div class="card-desc">Ranking πολιτικών βάσει απόδοσης, τελευταίες κινήσεις, top stocks.</div>
+    </a>
+  </div>
+
+  <div class="notable-trades">
+    <h3>📌 Γνωστές Πρόσφατες Κινήσεις (2025-2026)</h3>
+    <table class="cong-tbl">
+      <thead>
+        <tr>
+          <th>Ημερομηνία</th>
+          <th>Μέλος</th>
+          <th>Ticker</th>
+          <th>Εταιρεία</th>
+          <th>Κίνηση</th>
+          <th>Ποσό</th>
+          <th>Πηγή</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>2025-12</td><td>Nancy Pelosi</td><td><span class="ticker">NVDA</span></td><td>NVIDIA Corp</td><td><span class="badge-buy">Αγορά Call</span></td><td>$500K-$1M</td><td><a href="https://www.capitoltrades.com/politicians/P000197" target="_blank">→</a></td></tr>
+        <tr><td>2025-11</td><td>Dan Crenshaw</td><td><span class="ticker">LMT</span></td><td>Lockheed Martin</td><td><span class="badge-buy">Αγορά</span></td><td>$15K-$50K</td><td><a href="https://www.capitoltrades.com" target="_blank">→</a></td></tr>
+        <tr><td>2025-10</td><td>Tommy Tuberville</td><td><span class="ticker">F</span></td><td>Ford Motor</td><td><span class="badge-sell">Πώληση</span></td><td>$1K-$15K</td><td><a href="https://senatestockwatcher.com" target="_blank">→</a></td></tr>
+        <tr><td>2025-09</td><td>Josh Gottheimer</td><td><span class="ticker">AMZN</span></td><td>Amazon.com</td><td><span class="badge-buy">Αγορά</span></td><td>$15K-$50K</td><td><a href="https://housestockwatcher.com" target="_blank">→</a></td></tr>
+        <tr><td>2025-08</td><td>Ro Khanna</td><td><span class="ticker">MSFT</span></td><td>Microsoft</td><td><span class="badge-sell">Πώληση</span></td><td>$50K-$100K</td><td><a href="https://housestockwatcher.com" target="_blank">→</a></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.72rem;color:#9ca3af;margin-top:8px">* Ενδεικτικές εγγραφές. Για live & πλήρη δεδομένα χρησιμοποίησε τις παραπάνω πλατφόρμες.</p>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════
+// DATA
+// ═══════════════════════════════════
+const INVESTORS = [
+  {
+    id: 'burry',
+    name: 'Michael Burry',
+    fund: 'Scion Asset Mgmt',
+    period: 'Q3 2025',
+    filingDate: '2025-11-03',
+    edgarUrl: 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1649339&type=13F-HR',
+    holdings: [
+      { name: 'PALANTIR TECHNOLOGIES', class: 'CL A', value: 912100, shares: 5000000, pos: 'Put' },
+      { name: 'NVIDIA CORPORATION', class: 'COM', value: 186580, shares: 1000000, pos: 'Put' },
+      { name: 'PFIZER INC', class: 'COM', value: 152880, shares: 6000000, pos: 'Call' },
+      { name: 'HALLIBURTON CO', class: 'COM', value: 61500, shares: 2500000, pos: 'Call' },
+      { name: 'MOLINA HEALTHCARE INC', class: 'COM', value: 23920, shares: 125000, pos: 'SH' },
+      { name: 'LULULEMON ATHLETICA', class: 'COM', value: 17793, shares: 100000, pos: 'SH' },
+      { name: 'SLM CORP', class: 'COM', value: 13287, shares: 480054, pos: 'SH' },
+      { name: 'BRUKER CORP', class: 'PREF SER A', value: 13137, shares: 48334, pos: 'SH' },
+    ]
+  },
+  {
+    id: 'ackman',
+    name: 'Bill Ackman',
+    fund: 'Pershing Square Inc.',
+    period: 'Q1 2026',
+    filingDate: '2026-05-15',
+    edgarUrl: 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=2026053&type=13F-HR',
+    holdings: [
+      { name: 'HOWARD HUGHES HOLDINGS', class: 'COM', value: 569340, shares: 9000000, pos: 'SH' },
+    ]
+  },
+  {
+    id: 'druck',
+    name: 'Stan Druckenmiller',
+    fund: 'Duquesne Family Office',
+    period: 'Q1 2026',
+    filingDate: '2026-05-15',
+    edgarUrl: 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1536411&type=13F-HR',
+    holdings: [
+      { name: 'NATERA INC', class: 'COM', value: 612691, shares: 3063606, pos: 'SH' },
+      { name: 'INSMED INC', class: 'COM', value: 188717, shares: 1154090, pos: 'SH' },
+      { name: 'INVESCO S&P500 EQL WGT (CALL)', class: 'ETF', value: 157566, shares: 821000, pos: 'Call' },
+      { name: 'ISHARES MSCI BRAZIL (CALL)', class: 'ETF', value: 162313, shares: 4228000, pos: 'Call' },
+      { name: 'ISHARES MSCI BRAZIL', class: 'ETF', value: 131915, shares: 3436170, pos: 'SH' },
+      { name: 'TAIWAN SEMICONDUCTOR (TSMC)', class: 'ADS', value: 167380, shares: 495280, pos: 'SH' },
+      { name: 'NEWAMSTERDAM PHARMA', class: 'ORD', value: 98275, shares: 3070146, pos: 'SH' },
+      { name: 'SEA LTD', class: 'ADS', value: 91083, shares: 1099905, pos: 'SH' },
+      { name: 'STMICROELECTRONICS NV', class: 'NY REG', value: 90275, shares: 2612880, pos: 'SH' },
+      { name: 'WOODWARD INC', class: 'COM', value: 75648, shares: 211355, pos: 'SH' },
+      { name: 'TEVA PHARMACEUTICAL', class: 'ADS', value: 71604, shares: 2377285, pos: 'SH' },
+      { name: 'ROKU INC', class: 'CL A', value: 70983, shares: 750190, pos: 'SH' },
+      { name: 'STATE STR SPDR S&P500 (CALL)', class: 'ETF', value: 58531, shares: 90000, pos: 'Call' },
+      { name: 'BROADCOM INC', class: 'COM', value: 60650, shares: 195955, pos: 'SH' },
+      { name: 'COUPANG INC', class: 'CL A', value: 50362, shares: 2667485, pos: 'SH' },
+      { name: 'OPTION CARE HEALTH', class: 'COM', value: 50301, shares: 1868550, pos: 'SH' },
+      { name: 'ALCOA CORP', class: 'COM', value: 99057, shares: 1493390, pos: 'SH' },
+      { name: 'BBB FOODS INC', class: 'CL A', value: 109972, shares: 3109202, pos: 'SH' },
+      { name: 'REVOLUTION MEDICINES', class: 'COM', value: 30717, shares: 315860, pos: 'SH' },
+      { name: 'LATTICE SEMICONDUCTOR', class: 'COM', value: 29974, shares: 323135, pos: 'SH' },
+      { name: 'SANDISK CORP', class: 'COM', value: 24241, shares: 38155, pos: 'SH' },
+      { name: 'HUMANA INC', class: 'COM', value: 23842, shares: 137505, pos: 'SH' },
+      { name: 'JABIL INC', class: 'COM', value: 21835, shares: 82200, pos: 'SH' },
+      { name: 'ISHARES S&P GSCI COMMODITY', class: 'ETF', value: 20737, shares: 643000, pos: 'SH' },
+      { name: 'SOUTHERN COPPER CORP', class: 'COM', value: 20964, shares: 121843, pos: 'SH' },
+      { name: 'SEAGATE TECHNOLOGY', class: 'ORD', value: 19862, shares: 50700, pos: 'SH' },
+      { name: 'ISHARES RUSSELL 2000 (CALL)', class: 'ETF', value: 19592, shares: 79000, pos: 'Call' },
+      { name: 'NUVATION BIO INC', class: 'CL A', value: 19476, shares: 4539800, pos: 'SH' },
+      { name: 'INTEL CORP', class: 'COM', value: 18155, shares: 411400, pos: 'SH' },
+      { name: 'BLOOM ENERGY CORP', class: 'CL A', value: 18470, shares: 136320, pos: 'SH' },
+      { name: 'BELITE BIO ADS', class: 'ADS', value: 16917, shares: 106100, pos: 'SH' },
+      { name: 'ARM HOLDINGS', class: 'ADS', value: 16142, shares: 106700, pos: 'SH' },
+      { name: 'OLEMA PHARMACEUTICALS', class: 'COM', value: 14714, shares: 986827, pos: 'SH' },
+      { name: 'QNITY ELECTRONICS', class: 'COM', value: 14498, shares: 125655, pos: 'SH' },
+      { name: 'ADMA BIOLOGICS', class: 'COM', value: 13926, shares: 1545610, pos: 'SH' },
+      { name: 'XENON PHARMACEUTICALS', class: 'COM', value: 13875, shares: 238600, pos: 'SH' },
+      { name: 'CLOUDFLARE INC', class: 'CL A', value: 10840, shares: 52535, pos: 'SH' },
+      { name: 'AMAZON COM INC', class: 'COM', value: 9539, shares: 45800, pos: 'SH' },
+      { name: 'AMAZON COM (CALL)', class: 'COM', value: 41654, shares: 200000, pos: 'Call' },
+      { name: 'CELESTICA INC', class: 'COM', value: 9373, shares: 33275, pos: 'SH' },
+      { name: 'MICRON TECHNOLOGY', class: 'COM', value: 7905, shares: 23400, pos: 'SH' },
+      { name: 'ECHOSTAR CORP', class: 'CL A', value: 7114, shares: 60765, pos: 'SH' },
+      { name: 'ALMONTY INDUSTRIES', class: 'COM NEW', value: 6804, shares: 469880, pos: 'SH' },
+      { name: 'PURECYCLE TECHNOLOGIES', class: 'COM', value: 4999, shares: 963189, pos: 'SH' },
+      { name: 'LUMENTUM HOLDINGS', class: 'COM', value: 4893, shares: 6963, pos: 'SH' },
+      { name: 'MERCADOLIBRE', class: 'COM', value: 4782, shares: 2766, pos: 'SH' },
+      { name: 'DBV TECHNOLOGIES ADS', class: 'ADS', value: 8008, shares: 383363, pos: 'SH' },
+      { name: 'DAKTRONICS INC', class: 'COM', value: 11000, shares: 562637, pos: 'SH' },
+      { name: 'CARIS LIFE SCIENCES', class: 'COM', value: 33873, shares: 1894450, pos: 'SH' },
+      { name: 'FIGURE TECHNOLOGY', class: 'CL A', value: 39057, shares: 1150415, pos: 'SH' },
+      { name: 'GLOBAL X GB MSCI AR ETF', class: 'ETF', value: 36152, shares: 387400, pos: 'SH' },
+      { name: 'CRH PLC', class: 'ORD', value: 39689, shares: 377555, pos: 'SH' },
+      { name: 'CLEVELAND-CLIFFS', class: 'COM', value: 19549, shares: 2313455, pos: 'SH' },
+      { name: 'COHERENT CORP', class: 'COM', value: 9624, shares: 40400, pos: 'SH' },
+      { name: 'JABS NV', class: 'CL A', value: 11780, shares: 655900, pos: 'SH' },
+      { name: 'LINDE PLC', class: 'SHS', value: 20425, shares: 41200, pos: 'SH' },
+      { name: 'LYONDELLBASELL INDUSTRIES', class: 'SHS-A', value: 10588, shares: 131435, pos: 'SH' },
+      { name: 'RESTAURANT BRANDS INTL', class: 'COM', value: 33583, shares: 454435, pos: 'SH' },
+      { name: 'PROTAGONIST THERAPEUTICS', class: 'COM', value: 16832, shares: 159700, pos: 'SH' },
+      { name: 'STUBHUB HOLDINGS', class: 'CL A', value: 8531, shares: 1367177, pos: 'SH' },
+      { name: 'TWILIO INC', class: 'CL A', value: 22869, shares: 181760, pos: 'SH' },
+      { name: 'TWIST BIOSCIENCE', class: 'COM', value: 9789, shares: 206000, pos: 'SH' },
+      { name: 'UNITED AIRLINES HOLDINGS', class: 'COM', value: 24168, shares: 262495, pos: 'SH' },
+      { name: 'UNITY SOFTWARE', class: 'COM', value: 16209, shares: 738785, pos: 'SH' },
+      { name: 'VISTA ENERGY SAB', class: 'ADS', value: 10166, shares: 134700, pos: 'SH' },
+      { name: 'WABTEC', class: 'COM', value: 23715, shares: 94895, pos: 'SH' },
+      { name: 'WAVE LIFE SCIENCES', class: 'SHS', value: 1254, shares: 173000, pos: 'SH' },
+      { name: 'WESTLAKE CORPORATION', class: 'COM', value: 2476, shares: 21194, pos: 'SH' },
+      { name: 'YPF SOCIEDAD ANONIMA', class: 'ADR CL D', value: 149566, shares: 3235962, pos: 'SH' },
+      { name: 'SOLSTICE ADVANCED MATERIALS', class: 'COM', value: 4762, shares: 62525, pos: 'SH' },
+    ]
+  },
+  {
+    id: 'tepper',
+    name: 'David Tepper',
+    fund: 'Appaloosa LP',
+    period: 'Q1 2026',
+    filingDate: '2026-05-15',
+    edgarUrl: 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1656456&type=13F-HR',
+    holdings: [
+      { name: 'AMAZON COM INC', class: 'COM', value: 899726, shares: 4320000, pos: 'SH' },
+      { name: 'MICRON TECHNOLOGY INC', class: 'COM', value: 562504, shares: 1665000, pos: 'SH' },
+      { name: 'ALPHABET INC', class: 'CAP STK CL C', value: 497042, shares: 1732700, pos: 'SH' },
+      { name: 'UBER TECHNOLOGIES INC', class: 'COM', value: 455513, shares: 6332720, pos: 'SH' },
+      { name: 'TAIWAN SEMICONDUCTOR', class: 'SPONSORED ADS', value: 448629, shares: 1327500, pos: 'SH' },
+      { name: 'ALIBABA GROUP HLDG LTD', class: 'SPONSORED ADS', value: 434719, shares: 3465000, pos: 'SH' },
+      { name: 'VISTRA CORP', class: 'COM', value: 304017, shares: 2022332, pos: 'SH' },
+      { name: 'ISHARES MSCI SOUTH KOREA ETF', class: 'ETF', value: 295224, shares: 2400000, pos: 'SH' },
+      { name: 'NVIDIA CORPORATION', class: 'COM', value: 256630, shares: 1471500, pos: 'SH' },
+      { name: 'NRG ENERGY INC', class: 'COM NEW', value: 253471, shares: 1734442, pos: 'SH' },
+      { name: 'META PLATFORMS INC', class: 'CL A', value: 249735, shares: 436500, pos: 'SH' },
+      { name: 'SANDISK CORP', class: 'COM', value: 178689, shares: 281250, pos: 'SH' },
+      { name: 'CORNING INC', class: 'COM', value: 153578, shares: 1129500, pos: 'SH' },
+      { name: 'WHIRLPOOL CORP', class: 'COM', value: 105144, shares: 1950000, pos: 'SH' },
+      { name: 'PDD HOLDINGS INC', class: 'SPONSORED ADS', value: 91962, shares: 900000, pos: 'SH' },
+      { name: 'LAM RESEARCH CORP', class: 'COM NEW', value: 81725, shares: 382500, pos: 'SH' },
+      { name: 'BAIDU INC', class: 'SPON ADR REP A', value: 77114, shares: 692100, pos: 'SH' },
+      { name: 'L3HARRIS TECHNOLOGIES INC', class: 'COM', value: 68340, shares: 198000, pos: 'SH' },
+      { name: 'RTX CORPORATION', class: 'COM', value: 65972, shares: 342000, pos: 'SH' },
+      { name: 'ASML HLDG NV', class: 'N Y REGISTRY SHS', value: 65381, shares: 49500, pos: 'SH' },
+      { name: 'QUALCOMM INC', class: 'COM', value: 64211, shares: 498613, pos: 'SH' },
+      { name: 'ADVANCED MICRO DEVICES', class: 'COM', value: 45039, shares: 221400, pos: 'SH' },
+      { name: 'JD.COM INC', class: 'SPON ADS CL A', value: 38589, shares: 1305000, pos: 'SH' },
+      { name: 'LYFT INC', class: 'CL A COM', value: 35910, shares: 2700000, pos: 'SH' },
+      { name: 'MICROSOFT CORP', class: 'COM', value: 33315, shares: 90000, pos: 'SH' },
+      { name: 'KRANESHARES CSI CHINA INTERNET', class: 'ETF', value: 30704, shares: 1080000, pos: 'SH' },
+      { name: 'ENERGY TRANSFER L P', class: 'COM UT LTD PTN', value: 30419, shares: 1576125, pos: 'SH' },
+      { name: 'MPLX LP', class: 'COM UNIT REP LTD', value: 28675, shares: 502460, pos: 'SH' },
+      { name: 'UNITEDHEALTH GROUP INC', class: 'COM', value: 24353, shares: 90000, pos: 'SH' },
+      { name: 'DEUTSCHE BK AG', class: 'NAMEN AKT', value: 7672, shares: 257616, pos: 'SH' },
+    ]
+  },
+  {
+    id: 'buffett',
+    name: 'Warren Buffett',
+    fund: 'Berkshire Hathaway',
+    period: 'Q1 2026',
+    filingDate: '2026-05-15',
+    edgarUrl: 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1067983&type=13F-HR',
+    holdings: [
+      { name: 'AMERICAN EXPRESS CO', class: 'COM', value: 45087985, shares: 149061045, pos: 'SH' },
+      { name: 'COCA COLA CO', class: 'COM', value: 21501064, shares: 282722729, pos: 'SH' },
+      { name: 'APPLE INC', class: 'COM', value: 20471925, shares: 80664820, pos: 'SH' },
+      { name: 'OCCIDENTAL PETE CORP', class: 'COM', value: 17221193, shares: 264941431, pos: 'SH' },
+      { name: 'BANK AMERICA CORP', class: 'COM', value: 15151500, shares: 310800000, pos: 'SH' },
+      { name: 'CHEVRON CORPORATION', class: 'COM', value: 12052287, shares: 58251749, pos: 'SH' },
+      { name: 'ALPHABET INC', class: 'CAP STK CL A', value: 11871368, shares: 41283098, pos: 'SH' },
+      { name: 'CHUBB LTD SWITZ', class: 'COM', value: 11162836, shares: 34249183, pos: 'SH' },
+      { name: 'KRAFT HEINZ CO', class: 'COM', value: 7323527, shares: 325634818, pos: 'SH' },
+      { name: 'MOODYS CORP', class: 'COM', value: 5507111, shares: 12623750, pos: 'SH' },
+      { name: 'DELTA AIR LINES INC', class: 'COM NEW', value: 2646533, shares: 39809456, pos: 'SH' },
+      { name: 'SIRIUSXM HOLDINGS INC', class: 'COMMON STOCK', value: 2511617, shares: 108822227, pos: 'SH' },
+      { name: 'DAVITA INC', class: 'COM', value: 2324865, shares: 15126977, pos: 'SH' },
+      { name: 'VERISIGN INC', class: 'COM', value: 1991085, shares: 8016933, pos: 'SH' },
+      { name: 'KROGER CO', class: 'COM', value: 1972335, shares: 27257260, pos: 'SH' },
+      { name: 'NEW YORK TIMES CO', class: 'CL A', value: 1150997, shares: 13746535, pos: 'SH' },
+      { name: 'LENNAR CORP', class: 'CL A', value: 877053, shares: 10099642, pos: 'SH' },
+      { name: 'CAPITAL ONE FINL CORP', class: 'COM', value: 560751, shares: 3073787, pos: 'SH' },
+      { name: 'ALLY FINL INC', class: 'COM', value: 498993, shares: 12719675, pos: 'SH' },
+      { name: 'LIBERTY LIVE HOLDINGS INC', class: 'COM SHS SER C', value: 518319, shares: 5507583, pos: 'SH' },
+      { name: 'NUCOR CORP', class: 'COM', value: 660686, shares: 3907075, pos: 'SH' },
+      { name: 'LOUISIANA PAC CORP', class: 'COM', value: 316092, shares: 4344909, pos: 'SH' },
+      { name: 'LIBERTY LIVE HOLDINGS INC', class: 'COM SER A', value: 301017, shares: 3284775, pos: 'SH' },
+      { name: 'CONSTELLATION BRANDS INC', class: 'CL A', value: 94934, shares: 632890, pos: 'SH' },
+      { name: 'NVR INC', class: 'COM', value: 73226, shares: 11112, pos: 'SH' },
+    ]
+  },
+  {
+    id: 'soros',
+    name: 'George Soros',
+    fund: 'Soros Fund Management',
+    period: 'Q1 2026',
+    filingDate: '2026-05-15',
+    edgarUrl: 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1029160&type=13F-HR',
+    holdings: [
+      { name: 'AMAZON COM INC', class: 'COM', value: 405249, shares: 1945789, pos: 'SH' },
+      { name: 'COREWEAVE INC', class: 'COM CL A', value: 220022, shares: 2840100, pos: 'SH' },
+      { name: 'GLOBAL PMTS INC', class: 'NOTE', value: 218206, shares: 247500000, pos: 'PRN' },
+      { name: 'ELECTRONIC ARTS INC', class: 'COM', value: 196896, shares: 965793, pos: 'SH' },
+      { name: 'BILL HOLDINGS INC', class: 'NOTE', value: 186562, shares: 209679000, pos: 'PRN' },
+      { name: 'ALPHABET INC', class: 'CAP STK CL A', value: 165039, shares: 573929, pos: 'SH' },
+      { name: 'JAZZ INVESTMENTS NOTE', class: 'NOTE', value: 158441, shares: 130399000, pos: 'PRN' },
+      { name: 'APPLE INC', class: 'COM', value: 127030, shares: 500534, pos: 'SH' },
+      { name: 'DEXCOM INC', class: 'NOTE', value: 98239, shares: 103500000, pos: 'PRN' },
+      { name: 'CHART INDS INC', class: 'COM', value: 97192, shares: 470095, pos: 'SH' },
+      { name: 'BLACKLINE INC', class: 'NOTE', value: 94857, shares: 101000000, pos: 'PRN' },
+      { name: 'AMICUS THERAPEUTIC', class: 'COM', value: 83191, shares: 5753186, pos: 'SH' },
+      { name: 'IDACORP INC', class: 'COM', value: 82535, shares: 577290, pos: 'SH' },
+      { name: 'HONEYWELL INTL INC', class: 'COM', value: 80930, shares: 358052, pos: 'SH' },
+      { name: 'CMS ENERGY CORP', class: 'COM', value: 80248, shares: 1034397, pos: 'SH' },
+      { name: 'HOLOGIC INC', class: 'COM', value: 76614, shares: 1013552, pos: 'SH' },
+      { name: 'H2O AMERICA', class: 'COM', value: 72090, shares: 1228747, pos: 'SH' },
+      { name: 'ITRON INC', class: 'COM', value: 69672, shares: 777335, pos: 'SH' },
+      { name: 'CLEARWATER ANALYTICS HLDGS', class: 'CL A', value: 69564, shares: 2941405, pos: 'SH' },
+      { name: 'BERKSHIRE HATHAWAY INC', class: 'CL B NEW', value: 63866, shares: 133277, pos: 'SH' },
+      { name: 'COREBRIDGE FINL INC', class: 'COM', value: 50908, shares: 2133647, pos: 'SH' },
+      { name: 'BRIGHTHOUSE FINL INC', class: 'COM', value: 50706, shares: 846794, pos: 'SH' },
+      { name: 'BROADCOM INC', class: 'COM', value: 48007, shares: 155107, pos: 'SH' },
+      { name: 'INTERACTIVE BROKERS GROUP', class: 'COM CL A', value: 43283, shares: 645344, pos: 'SH' },
+      { name: 'DROPBOX INC', class: 'NOTE', value: 58165, shares: 62977000, pos: 'PRN' },
+    ]
+  },
+  {
+    id: 'icahn',
+    name: 'Carl Icahn',
+    fund: 'Icahn Capital (N/A)',
+    period: 'Χωρίς 13F',
+    filingDate: null,
+    edgarUrl: 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1412093&type=13F-HR',
+    noData: true,
+    holdings: []
+  },
+];
+
+// ═══════════════════════════════════
+// STATE
+// ═══════════════════════════════════
+let activeInvestor = null;
+let sortCol = 'value';
+let sortDir = -1;
+let searchTerm = '';
+
+// ═══════════════════════════════════
+// TABS
+// ═══════════════════════════════════
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ═══════════════════════════════════
+// INVESTOR CARDS
+// ═══════════════════════════════════
+const grid = document.getElementById('inv-grid');
+INVESTORS.forEach(inv => {
+  const card = document.createElement('div');
+  card.className = 'inv-card';
+  card.innerHTML = `
+    <div class="inv-name">${inv.name}</div>
+    <div class="inv-fund">${inv.fund}</div>
+    <div class="inv-period">${inv.period}</div>
+  `;
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.inv-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    selectInvestor(inv);
+  });
+  grid.appendChild(card);
+});
+
+// ═══════════════════════════════════
+// SELECT INVESTOR
+// ═══════════════════════════════════
+function selectInvestor(inv) {
+  activeInvestor = inv;
+  searchTerm = '';
+  document.getElementById('search-input').value = '';
+  sortCol = 'value'; sortDir = -1;
+
+  if (inv.noData) {
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('empty-state').innerHTML = `
+      <div class="icon">⚠️</div>
+      <div style="font-weight:700;color:#374151;margin-bottom:6px">Δεν υπάρχουν διαθέσιμα δεδομένα 13F</div>
+      <div>Ο Carl Icahn σταμάτησε να καταθέτει 13F από το 2011. Ελέγξτε τα δημόσια SEC αρχεία.</div>
+      <a href="${inv.edgarUrl}" target="_blank" style="display:inline-block;margin-top:10px;color:#4f46e5;font-size:0.8rem;text-decoration:none;font-weight:600">Άνοιγμα SEC EDGAR ↗</a>
+    `;
+    document.getElementById('holdings-view').style.display = 'none';
+    return;
+  }
+  const total = inv.holdings.reduce((s, h) => s + h.value, 0);
+  const totalM = total / 1000;
+  const totalStr = totalM >= 1000 ? `$${(totalM/1000).toFixed(1)}B` : `$${totalM.toFixed(0)}M`;
+  document.getElementById('info-bar').innerHTML = `
+    <span class="pill">👤 <strong>${inv.name}</strong></span>
+    <span class="pill">📅 Περίοδος: <strong>${inv.period}</strong></span>
+    <span class="pill">📊 Θέσεις: <strong>${inv.holdings.length}</strong></span>
+    <span class="pill">💰 Αξία: <strong>${totalStr}</strong></span>
+    <a href="${inv.edgarUrl}" target="_blank">SEC EDGAR ↗</a>
+  `;
+
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('empty-state').innerHTML = '<div class="icon">👆</div><div>Επέλεξε έναν επενδυτή για να δεις τις θέσεις του</div><div style="margin-top:6px;font-size:0.75rem">Δεδομένα απευθείας από SEC EDGAR</div>';
+  document.getElementById('holdings-view').style.display = 'block';
+  renderTable();
+}
+
+// ═══════════════════════════════════
+// RENDER TABLE
+// ═══════════════════════════════════
+function renderTable() {
+  if (!activeInvestor) return;
+  const holdings = activeInvestor.holdings;
+  const total = holdings.reduce((s, h) => s + h.value, 0);
+
+  let filtered = holdings.filter(h =>
+    !searchTerm || h.name.toLowerCase().includes(searchTerm)
+  );
+
+  filtered = [...filtered].sort((a, b) => {
+    const va = a[sortCol === 'value' ? 'value' : sortCol === 'shares' ? 'shares' : 'name'];
+    const vb = b[sortCol === 'value' ? 'value' : sortCol === 'shares' ? 'shares' : 'name'];
+    if (typeof va === 'number') return sortDir * (vb - va);
+    return sortDir * String(va).localeCompare(String(vb));
+  });
+
+  document.getElementById('count-label').textContent = `${filtered.length} εγγραφές`;
+
+  const tbody = document.getElementById('holdings-body');
+  tbody.innerHTML = '';
+  filtered.forEach((h, i) => {
+    const pct = ((h.value / total) * 100).toFixed(1);
+    const posClass = h.pos === 'Put' ? 'badge-put' : h.pos === 'Call' ? 'badge-call' : h.pos === 'PRN' ? 'badge-other' : 'badge-sh';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:#9ca3af;font-size:0.75rem">${i+1}</td>
+      <td style="font-weight:600">${h.name}</td>
+      <td style="font-size:0.75rem;color:#6b7280">${h.class}</td>
+      <td class="num">$${h.value.toLocaleString()}</td>
+      <td class="num">${h.shares.toLocaleString()}</td>
+      <td class="num">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+          <div style="width:${Math.min(parseFloat(pct)*2,60)}px;height:4px;background:#4f46e5;border-radius:2px;opacity:0.6"></div>
+          <span>${pct}%</span>
+        </div>
+      </td>
+      <td><span class="badge ${posClass}">${h.pos}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Update sort headers
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    th.classList.remove('sorted');
+    if (th.dataset.col === sortCol) th.classList.add('sorted');
+  });
+}
+
+// Sort
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    if (sortCol === th.dataset.col) sortDir *= -1;
+    else { sortCol = th.dataset.col; sortDir = -1; }
+    renderTable();
+  });
+});
+
+// Search
+document.getElementById('search-input').addEventListener('input', e => {
+  searchTerm = e.target.value.toLowerCase();
+  renderTable();
+});
+</script>
+</body>
+</html>
